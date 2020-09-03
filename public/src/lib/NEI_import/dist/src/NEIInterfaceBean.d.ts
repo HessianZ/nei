@@ -32,7 +32,7 @@ export declare class NEIInterfaceBean {
     className: string;
     description: string;
     method: string;
-    tags: string;
+    tag: string;
     name: string;
     params: NeiInterfaceParams;
     path: string;

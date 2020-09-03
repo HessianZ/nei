@@ -22,7 +22,7 @@ function getDataTypeNameFromRef(ref: string): string {
 
 function deepClone(parameter: any) {
 	return JSON.parse(JSON.stringify(parameter));
-}
+27}
 
 /**
  * @param {Schema} schema
@@ -216,7 +216,7 @@ export default function processSwagger(content) {
 				neiInterfaceBean.className = operation.operationId;
 				neiInterfaceBean.path =pathLib.join(basePath,pathName);
 				// Nei中tag是以','分割开的
-				neiInterfaceBean.tags = operation.tags ? operation.tags.join(",") : "";
+				neiInterfaceBean.tag = operation.tags ? operation.tags.join(",").replace(" - ", ",") : "";
 
 				// 处理request
 				// nei上有个不同的地方在于，如果这个请求是get请求，则加入到request, 如果是post请求，在header里面的就得放入path中了
@@ -228,11 +228,14 @@ export default function processSwagger(content) {
 					});
 
 					if (methodName.toUpperCase() !== "GET") {
+						if (neiInterfaceBean.path.charAt(neiInterfaceBean.path.length-1) != '?') {
+							neiInterfaceBean.path += '?';
+						}
 						neiInterfaceBean.path += operation.parameters.filter(p => {
 							return p.in.toLowerCase() === "query";
 						}).map(p => {
-							return p.name;
-						}).join("=&");
+							return p.name + '=';
+						}).join("&");
 						operation.parameters = operation.parameters.filter(p => p.in.toLowerCase() !== "query"); // 剔除
 					}
 

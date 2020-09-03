@@ -45,7 +45,7 @@ function helperParams(name, schema, processed, datatypes) {
             ret = ret.concat(res[0]);
         });
     }
-    else if (name == null && schema.enum) {
+    else if (name == null && schema.enum) { // 创建enum数据模型
         format = 1;
         ret = schema.enum.map(function (value) {
             var temp = new NEIInterfaceBean_1.Parameter();
@@ -54,13 +54,19 @@ function helperParams(name, schema, processed, datatypes) {
             return temp;
         });
     }
-    else if (schema.enum) {
+    else if (schema.enum) { // 匿名enum数据类型现在还不支持，需要前端支持
         return NEIInterfaceBean_1.Parameter.createParameter(name, schema.type, schema);
     }
-    else if (schema.type) {
-        var type = schema.type.toLowerCase();
+    else if (schema.type || schema.properties) {
+        var type = "";
+        if (schema.type) {
+            type = schema.type.toLowerCase();
+        }
+        else {
+            type = "object";
+        }
         switch (type) {
-            case "array":// name 不为空
+            case "array": // name 不为空
                 format = db.MDL_FMT_ARRAY;
                 var temp = helperParams(name, schema.items, processed, datatypes);
                 if (temp[1] == db.MDL_TYP_NORMAL) {
@@ -127,11 +133,12 @@ function importDataTypes(definitions, processed) {
      * @param {{[p: string]: Datatype}} processed
      */
     function helperDatatype(typeName, processed, datatypes) {
+        var _a;
         if (!(typeName in definitions)) {
             // todo 怎样做统一的报错处理
             throw new Error("\u672A\u5728definitions\u4E2D\u627E\u5230\u540D\u4E3A" + typeName + "\u7684\u6570\u636E\u6A21\u578B\u5B9A\u4E49");
         }
-        if (typeName in processed) {
+        if (typeName in processed) { //已处理过
             return processed[typeName];
         }
         var d = new NEIInterfaceBean_1.Datatype();
@@ -142,7 +149,6 @@ function importDataTypes(definitions, processed) {
         d.description = definition.description || "";
         processed[typeName] = d;
         return d;
-        var _a;
     }
     // definitions中的每一个DataType都会生成一个导入模型
     var datatypes = [];
@@ -187,7 +193,7 @@ function processSwagger(content) {
         var result = new Array();
         for (var pathName in api.paths) {
             var path = api.paths[pathName];
-            for (var methodName in path) {
+            for (var methodName in path) { // operation could be "GET"/"POST"
                 if (!isHttpMethod(methodName)) {
                     continue;
                 }
@@ -209,18 +215,21 @@ function processSwagger(content) {
                         return wh === "query" || wh === "body"; // NEI上不支持这个信息，只支持放在path上, 所以直接过滤掉
                     });
                     if (methodName.toUpperCase() !== "GET") {
+                        if (neiInterfaceBean.path.charAt(neiInterfaceBean.path.length - 1) != '?') {
+                            neiInterfaceBean.path += '?';
+                        }
                         neiInterfaceBean.path += operation.parameters.filter(function (p) {
                             return p.in.toLowerCase() === "query";
                         }).map(function (p) {
-                            return p.name;
-                        }).join("=&");
+                            return p.name + '=:' + p.name;
+                        }).join("&");
                         operation.parameters = operation.parameters.filter(function (p) { return p.in.toLowerCase() !== "query"; }); // 剔除
                     }
                     //处理剩下的parameter, 此时这些都应该在params.inputs字段中
                     neiInterfaceBean.params.inputs = operation.parameters.map(function (p) {
                         if (p.in.toLowerCase() === "body") {
                             var realP = p;
-                            var item = helperParams(p.name, realP.schema, processed, dataTypes);
+                            var item = helperParams(realP.schema ? null : p.name, realP.schema, processed, dataTypes);
                             item[0][0].description = realP.description;
                             if ("required" in p) {
                                 item[0][0].required = p.required;
